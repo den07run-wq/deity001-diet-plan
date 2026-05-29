@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>饮食记录 - 饮食计划助手</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/diet.css">
+</head>
+<body>
+  <header id="app-header" class="app-header"></header>
+  <nav id="app-sidebar" class="sidebar"></nav>
+
+  <main class="main-content">
+    <div class="page-header">
+      <div class="flex-between">
+        <h1>📝 饮食记录</h1>
+        <div style="display:flex;align-items:center;gap:12px;position:relative">
+          <button class="btn btn-info" onclick="showAIModal()">🤖 AI 智能录入</button>
+          <div class="export-wrapper">
+            <button class="btn btn-secondary" id="btn-export" onclick="toggleExportMenu()">📥 导出历史数据</button>
+            <div class="export-dropdown" id="export-dropdown" style="display:none">
+              <a href="javascript:void(0)" onclick="exportCSV(7)">最近 1 周</a>
+              <a href="javascript:void(0)" onclick="exportCSV(30)">最近 1 月</a>
+              <a href="javascript:void(0)" onclick="exportCSV(90)">最近 3 月</a>
+            </div>
+          </div>
+          <div class="date-picker">
+            <button class="date-nav" id="btn-prev-day">◀</button>
+            <span class="current-date" id="current-record-date">加载中...</span>
+            <button class="date-nav" id="btn-next-day">▶</button>
+          </div>
+        </div>
+      </div>
+      <p>记录每日饮食，追踪营养摄入</p>
+    </div>
+
+    <div class="meal-total" id="meal-total-summary">
+      <h3>📊 今日总计</h3>
+      <div class="total-row"><span>热量</span><span>-- kcal</span></div>
+    </div>
+
+    <div id="fav-shortcut" class="card" style="margin-bottom:16px;display:none">
+      <div class="card-header" style="cursor:pointer" onclick="document.getElementById('fav-shortcut-body').style.display = document.getElementById('fav-shortcut-body').style.display === 'none' ? '' : 'none'">
+        <h3>⭐ 我的收藏</h3>
+        <span class="text-sm text-muted" id="fav-count"></span>
+      </div>
+      <div class="card-body" id="fav-shortcut-body">
+        <div id="fav-shortcut-list" class="staging-tags"></div>
+      </div>
+    </div>
+
+    <div id="meal-sections"></div>
+  </main>
+
+  <script src="js/main.js"></script>
+  <script src="js/mealRecord.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!APP.auth.isLoggedIn()) {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      APP.initPage('meal-record');
+      MealRecord.init();
+    });
+
+    function showAIModal() {
+      const content = document.createElement('div');
+      content.innerHTML = `
+        <div class="form-group">
+          <label>用餐时段</label>
+          <select id="ai-meal-type" class="form-control">
+            <option value="早餐">🌅 早餐</option>
+            <option value="午餐">☀️ 午餐</option>
+            <option value="晚餐">🌙 晚餐</option>
+            <option value="加餐">🍎 加餐</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>饮食描述（大白话输入）</label>
+          <textarea id="ai-text" class="form-control" placeholder="例如：我今天中午吃了2个肉包、一碗米饭和一份番茄炒蛋" rows="3"></textarea>
+        </div>
+        <div class="form-group">
+          <label>食物图片（选填）</label>
+          <div class="image-upload-zone" id="ai-image-zone">
+            <div class="image-upload-placeholder" id="ai-image-placeholder">
+              <div class="image-upload-icon">🖼️</div>
+              <div class="image-upload-text">点击上传或拖拽图片到此处</div>
+              <div class="image-upload-hint">支持 JPG、PNG、WebP，大小不超过 10MB</div>
+            </div>
+            <input type="file" id="ai-image-file" accept="image/jpeg,image/png,image/webp" style="display:none">
+          </div>
+          <div class="form-hint">上传食物照片，AI 将结合图片进行精准识别</div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="APP.modal.close()">取消</button>
+          <button class="btn btn-info" id="btn-ai-analyze" onclick="runAIAnalyze()">
+            🤖 AI 智能分析
+          </button>
+        </div>
+      `;
+
+      const { modal } = APP.modal.show(content, { title: '🤖 AI 智能饮食录入' });
+      modal.style.minWidth = '480px';
+
+      // 初始化图片上传区域
+      initImageUpload();
+    }
+
+    let aiImageBase64 = null;
+
+    function initImageUpload() {
+      const zone = document.getElementById('ai-image-zone');
+      const fileInput = document.getElementById('ai-image-file');
+      const placeholder = document.getElementById('ai-image-placeholder');
+
+      if (!zone || !fileInput) return;
+
+      // 点击上传区域触发文件选择
+      zone.addEventListener('click', (e) => {
+        if (e.target.closest('.image-upload-remove')) return;
+        fileInput.click();
+      });
+
+      // 文件选择
+      fileInput.addEventListener('change', () => {
+        if (fileInput.files && fileInput.files[0]) {
+          handleImageFile(fileInput.files[0]);
+        }
+      });
+
+      // 拖拽事件
+      zone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        zone.classList.add('dragover');
+      });
+
+      zone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        zone.classList.remove('dragover');
+      });
+
+      zone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        zone.classList.remove('dragover');
+        const files = e.dataTransfer.files;
+        if (files && files[0]) {
+          handleImageFile(files[0]);
+        }
+      });
+    }
+
+    function handleImageFile(file) {
+      if (!file.type.startsWith('image/')) {
+        APP.toast('请上传图片文件', 'warning');
+        return;
+      }
+
+      if (file.size > 10 * 1024 * 1024) {
+        APP.toast('图片大小不能超过 10MB', 'warning');
+        return;
+      }
+
+      const zone = document.getElementById('ai-image-zone');
+      const placeholder = document.getElementById('ai-image-placeholder');
+
+      // 显示加载状态
+      placeholder.innerHTML = `
+        <div class="image-upload-loading">
+          <div class="image-upload-spinner"></div>
+          <div class="upload-progress-text">正在读取图片...</div>
+        </div>
+      `;
+
+      const reader = new FileReader();
+
+      reader.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const pct = Math.round((e.loaded / e.total) * 100);
+          placeholder.innerHTML = `
+            <div class="image-upload-loading">
+              <div class="image-upload-spinner"></div>
+              <div class="upload-progress">
+                <div class="progress-bar">
+                  <div class="progress-fill" style="width:${pct}%"></div>
+                </div>
+              </div>
+              <div class="upload-progress-text">读取中 ${pct}%</div>
+            </div>
+          `;
+        }
+      };
+
+      reader.onload = () => {
+        aiImageBase64 = reader.result;
+        placeholder.innerHTML = `
+          <div class="image-upload-preview">
+            <img src="${aiImageBase64}" alt="食物图片预览">
+            <div class="image-upload-remove" onclick="removeImage(event)">✕</div>
+          </div>
+        `;
+        zone.classList.add('has-image');
+      };
+
+      reader.onerror = () => {
+        APP.toast('图片读取失败，请重试', 'error');
+        resetImageUpload();
+      };
+
+      reader.readAsDataURL(file);
+    }
+
+    function removeImage(e) {
+      e.stopPropagation();
+      aiImageBase64 = null;
+      resetImageUpload();
+    }
+
+    function resetImageUpload() {
+      const zone = document.getElementById('ai-image-zone');
+      const placeholder = document.getElementById('ai-image-placeholder');
+      const fileInput = document.getElementById('ai-image-file');
+
+      if (zone) zone.classList.remove('has-image');
+      if (fileInput) fileInput.value = '';
+      if (placeholder) {
+        placeholder.innerHTML = `
+          <div class="image-upload-icon">🖼️</div>
+          <div class="image-upload-text">点击上传或拖拽图片到此处</div>
+          <div class="image-upload-hint">支持 JPG、PNG、WebP，大小不超过 10MB</div>
+        `;
+      }
+    }
+
+    function toggleExportMenu() {
+      const dd = document.getElementById('export-dropdown');
+      dd.style.display = dd.style.display === 'none' ? '' : 'none';
+    }
+
+    document.addEventListener('click', function(e) {
+      const wrapper = document.querySelector('.export-wrapper');
+      if (wrapper && !wrapper.contains(e.target)) {
+        document.getElementById('export-dropdown').style.display = 'none';
+      }
+    });
+
+    async function exportCSV(days) {
+      document.getElementById('export-dropdown').style.display = 'none';
+
+      const endDate = new Date();
+      const endStr = endDate.toISOString().slice(0, 10);
+      const startDate = new Date(endDate);
+      startDate.setDate(startDate.getDate() - days + 1);
+      const startStr = startDate.toISOString().slice(0, 10);
+
+      const btn = document.getElementById('btn-export');
+      btn.disabled = true;
+      btn.textContent = '⏳ 导出中...';
+
+      try {
+        const res = await APP.api.get(`/record/export?start=${startStr}&end=${endStr}`);
+        if (!res || res.code !== 200 || !res.data) {
+          APP.toast(res?.message || '导出失败', 'error');
+          return;
+        }
+
+        const rows = res.data;
+        const headers = ['日期', '摄入热量(kcal)', '蛋白质(g)', '脂肪(g)', '碳水(g)', '饮水量(ml)', '体重(kg)'];
+
+        let csv = '﻿' + headers.join(',') + '\n';
+        rows.forEach(function(r) {
+          csv += [
+            r.date,
+            r.calories,
+            r.protein,
+            r.fat,
+            r.carbs,
+            r.water_ml,
+            r.weight_kg !== null ? r.weight_kg : '',
+          ].join(',') + '\n';
+        });
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = '饮食数据_' + startStr + '_' + endStr + '.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        APP.toast('导出成功', 'success');
+      } catch (err) {
+        APP.toast(err.message || '导出失败', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '📥 导出历史数据';
+      }
+    }
+
+    async function runAIAnalyze() {
+      const mealType = document.getElementById('ai-meal-type').value;
+      const text = document.getElementById('ai-text').value.trim();
+      const btn = document.getElementById('btn-ai-analyze');
+      const today = APP.getToday();
+
+      if (!text && !aiImageBase64) {
+        APP.toast('请输入饮食描述或上传食物图片', 'warning');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = '⏳ AI 分析中...';
+
+      try {
+        const res = await APP.api.post('/ai/analyze', {
+          text: text || undefined,
+          imageBase64: aiImageBase64 || undefined,
+          mealType,
+          recordDate: today,
+        });
+
+        if (res && (res.code === 200 || res.code === 201)) {
+          APP.toast(res.message || 'AI 录入完成');
+          APP.modal.close();
+          MealRecord.loadRecords();
+        } else {
+          APP.toast(res.message || 'AI 分析失败', 'warning');
+        }
+      } catch (err) {
+        APP.toast(err.message || 'AI 服务异常，请稍后重试', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🤖 AI 智能分析';
+      }
+    }
+  </script>
+</body>
+</html>

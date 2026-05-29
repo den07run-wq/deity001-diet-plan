@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 - 页面不存在 | 饮食计划助手</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: #F5F5F5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .error-container {
+            text-align: center;
+            padding: 48px;
+        }
+
+        .error-code {
+            font-size: 120px;
+            font-weight: 800;
+            color: #4CAF50;
+            line-height: 1;
+            opacity: 0.3;
+        }
+
+        .error-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+
+        .error-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .error-message {
+            font-size: 14px;
+            color: #999;
+            margin-bottom: 32px;
+        }
+
+        .btn-home {
+            display: inline-block;
+            padding: 10px 28px;
+            background: #4CAF50;
+            color: white;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.3s;
+        }
+
+        .btn-home:hover {
+            background: #388E3C;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="error-container">
+        <div class="error-code">404</div>
+        <div class="error-icon">🍽️</div>
+        <h1 class="error-title">页面不存在</h1>
+        <p class="error-message">你访问的页面可能已被移除或暂时不可用</p>
+        <a href="index.html" class="btn-home">返回首页</a>
+    </div>
+</body>
+
+</html>

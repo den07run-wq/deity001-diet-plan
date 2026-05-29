@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>个人中心 - 饮食计划助手</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/diet.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+  <header id="app-header" class="app-header"></header>
+
+  <nav id="app-sidebar" class="sidebar"></nav>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1>👤 个人中心</h1>
+      <p>管理您的个人资料与账户设置</p>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header">
+          <h3>📋 个人资料</h3>
+        </div>
+        <div class="card-body">
+          <div class="loading" id="profile-loading">加载中</div>
+          <form id="profile-form" style="display:none">
+            <div class="form-group">
+              <label>昵称</label>
+              <input type="text" id="profile-nickname" class="form-control" placeholder="给自己取个昵称吧" maxlength="50">
+            </div>
+
+            <div class="grid-2">
+              <div class="form-group">
+                <label>性别</label>
+                <select id="profile-gender" class="form-control">
+                  <option value="">请选择</option>
+                  <option value="男">男</option>
+                  <option value="女">女</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>年龄</label>
+                <input type="number" id="profile-age" class="form-control" placeholder="请输入年龄" min="1" max="150">
+              </div>
+            </div>
+
+            <div class="grid-2">
+              <div class="form-group">
+                <label>身高 (cm)</label>
+                <input type="number" id="profile-height" class="form-control" placeholder="请输入身高" min="50" max="300" step="0.1">
+              </div>
+              <div class="form-group">
+                <label>体重 (kg)</label>
+                <input type="number" id="profile-weight" class="form-control" placeholder="请输入体重" min="10" max="500" step="0.1">
+              </div>
+            </div>
+
+            <div class="grid-2">
+              <div class="form-group">
+                <label>健康目标</label>
+                <select id="profile-goal" class="form-control">
+                  <option value="减脂">减脂</option>
+                  <option value="增肌">增肌</option>
+                  <option value="保持健康">保持健康</option>
+                  <option value="其他">其他</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>每日热量目标 (kcal)</label>
+                <input type="number" id="profile-calories" class="form-control" placeholder="默认 2000" min="500" max="10000">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <button type="button" id="btn-save-profile" class="btn btn-primary btn-lg btn-block" onclick="saveProfile()">
+                💾 保存资料
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>🔒 修改密码</h3>
+        </div>
+        <div class="card-body">
+          <form id="password-form">
+            <div class="form-group">
+              <label>旧密码</label>
+              <input type="password" id="pw-old" class="form-control" placeholder="请输入当前密码">
+            </div>
+            <div class="form-group">
+              <label>新密码</label>
+              <input type="password" id="pw-new" class="form-control" placeholder="至少 6 位字符" minlength="6">
+            </div>
+            <div class="form-group">
+              <label>确认新密码</label>
+              <input type="password" id="pw-confirm" class="form-control" placeholder="再次输入新密码">
+            </div>
+            <div class="form-group">
+              <button type="button" id="btn-save-password" class="btn btn-warning btn-lg btn-block" onclick="changePassword()">
+                🔑 修改密码
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="card-header">
+        <h3>ℹ️ 账户信息</h3>
+      </div>
+      <div class="card-body" id="account-info">
+        <div class="loading">加载中</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="card-header">
+        <h3>⚖️ 体重追踪</h3>
+        <div class="chart-tabs">
+          <button class="tab active" data-days="7" onclick="switchTrendDays(7, this)">7天</button>
+          <button class="tab" data-days="30" onclick="switchTrendDays(30, this)">30天</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="grid-2" style="margin-bottom:20px">
+          <div>
+            <div class="form-group" style="margin-bottom:12px">
+              <label>今日体重 (kg)</label>
+              <div style="display:flex;gap:8px">
+                <input type="number" id="today-weight" class="form-control" placeholder="输入今日体重" min="10" max="500" step="0.1" style="flex:1">
+                <button class="btn btn-primary" onclick="recordWeight()">记录</button>
+              </div>
+            </div>
+            <div id="weight-latest" class="text-muted text-sm"></div>
+          </div>
+          <div id="weight-stats" class="text-sm text-muted"></div>
+        </div>
+        <div style="position:relative;height:300px">
+          <canvas id="weight-chart"></canvas>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="js/main.js"></script>
+  <script>
+    let currentProfile = {};
+    let weightChart = null;
+    let trendDays = 7;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      APP.initPage('profile');
+      loadProfile();
+      loadWeightTrend();
+    });
+
+    async function loadProfile() {
+      try {
+        const res = await APP.api.get('/user/profile');
+        if (res && res.code === 200 && res.data) {
+          currentProfile = res.data;
+          renderProfileForm(currentProfile);
+          renderAccountInfo(currentProfile);
+        }
+      } catch (err) {
+        APP.toast('加载个人资料失败', 'error');
+      }
+    }
+
+    function renderProfileForm(data) {
+      document.getElementById('profile-loading').style.display = 'none';
+      const form = document.getElementById('profile-form');
+      form.style.display = '';
+
+      document.getElementById('profile-nickname').value = data.nickname || '';
+      document.getElementById('profile-gender').value = data.gender || '';
+      document.getElementById('profile-age').value = data.age || '';
+      document.getElementById('profile-height').value = data.height || '';
+      document.getElementById('profile-weight').value = data.weight || '';
+      document.getElementById('profile-goal').value = data.goal || '保持健康';
+      document.getElementById('profile-calories').value = data.daily_calorie_target || '';
+    }
+
+    function renderAccountInfo(data) {
+      const user = APP.auth.getUser();
+      document.getElementById('account-info').innerHTML = `
+        <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
+          <div>
+            <span class="text-muted text-sm">用户名</span>
+            <div class="font-medium">${APP.escapeHtml(user.username || '-')}</div>
+          </div>
+          <div>
+            <span class="text-muted text-sm">注册时间</span>
+            <div class="font-medium">${data.created_at ? new Date(data.created_at).toLocaleString('zh-CN') : '-'}</div>
+          </div>
+          <div>
+            <span class="text-muted text-sm">最后更新</span>
+            <div class="font-medium">${data.updated_at ? new Date(data.updated_at).toLocaleString('zh-CN') : '-'}</div>
+          </div>
+          <div>
+            <span class="text-muted text-sm">角色</span>
+            <div class="font-medium">${user.role === 1 ? '管理员' : '普通用户'}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    async function saveProfile() {
+      const btn = document.getElementById('btn-save-profile');
+      const newWeight = document.getElementById('profile-weight').value ? parseFloat(document.getElementById('profile-weight').value) : undefined;
+      const body = {
+        nickname: document.getElementById('profile-nickname').value.trim() || undefined,
+        gender: document.getElementById('profile-gender').value || undefined,
+        age: document.getElementById('profile-age').value ? parseInt(document.getElementById('profile-age').value) : undefined,
+        height: document.getElementById('profile-height').value ? parseFloat(document.getElementById('profile-height').value) : undefined,
+        weight: newWeight,
+        goal: document.getElementById('profile-goal').value || undefined,
+        daily_calorie_target: document.getElementById('profile-calories').value ? parseInt(document.getElementById('profile-calories').value) : undefined,
+      };
+
+      btn.disabled = true;
+      btn.textContent = '⏳ 保存中...';
+
+      try {
+        const res = await APP.api.put('/user/profile', body);
+        if (res && res.code === 200) {
+          APP.toast('个人资料已更新', 'success');
+
+          // 更新 localStorage 中的用户信息，使 header 等处即时生效
+          if (res.data) {
+            const user = APP.auth.getUser();
+            APP.auth.setUser({
+              ...user,
+              nickname: res.data.nickname,
+              gender: res.data.gender,
+              age: res.data.age,
+              height: res.data.height,
+              weight: res.data.weight,
+              goal: res.data.goal,
+              daily_calorie_target: res.data.daily_calorie_target,
+            });
+            // 刷新 header 显示
+            const header = document.getElementById('app-header');
+            if (header) APP.renderHeader(header);
+          }
+
+          // 体重变动时同步记录到体重历史
+          if (newWeight !== undefined && newWeight !== parseFloat(currentProfile.weight)) {
+            await APP.api.post('/weight', { weight: newWeight });
+            APP.cache.markReportStale();
+          }
+
+          loadProfile();
+          loadWeightTrend();
+        } else {
+          APP.toast(res.message || '保存失败', 'warning');
+        }
+      } catch (err) {
+        APP.toast(err.message || '保存失败', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '💾 保存资料';
+      }
+    }
+
+    async function recordWeight() {
+      const input = document.getElementById('today-weight');
+      const weight = parseFloat(input.value);
+
+      if (!weight || weight <= 0 || weight > 500) {
+        APP.toast('请输入有效的体重数值', 'warning');
+        return;
+      }
+
+      try {
+        const res = await APP.api.post('/weight', { weight });
+        if (res && res.code === 201) {
+          APP.cache.markReportStale();
+          APP.toast('体重记录成功', 'success');
+          input.value = '';
+          loadWeightTrend();
+        }
+      } catch (err) {
+        APP.toast(err.message || '记录失败', 'error');
+      }
+    }
+
+    async function loadWeightTrend() {
+      try {
+        const res = await APP.api.get(`/weight/trend?days=365`);
+        if (res && res.code === 200 && res.data) {
+          renderWeightChart(res.data);
+        }
+      } catch (err) {
+        console.error('加载体重趋势失败:', err);
+      }
+    }
+
+    function renderWeightChart(data) {
+      const ctx = document.getElementById('weight-chart');
+      if (!ctx) return;
+
+      // 按前端选择的天数筛选
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - trendDays);
+      const cutoffStr = cutoff.toISOString().slice(0, 10);
+      const filtered = data.filter((d) => d.recorded_at >= cutoffStr);
+
+      const labels = filtered.map((d) => {
+        const date = new Date(d.recorded_at);
+        return (date.getMonth() + 1) + '/' + date.getDate();
+      });
+      const values = filtered.map((d) => parseFloat(d.weight));
+
+      if (weightChart) weightChart.destroy();
+
+      weightChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: '体重 (kg)',
+            data: values,
+            borderColor: '#4CAF50',
+            backgroundColor: 'rgba(76, 175, 80, 0.1)',
+            borderWidth: 2,
+            pointRadius: 4,
+            pointBackgroundColor: '#4CAF50',
+            fill: true,
+            tension: 0.3,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => ctx.parsed.y + ' kg',
+              },
+            },
+          },
+          scales: {
+            y: {
+              grace: '5%',
+              ticks: {
+                callback: (v) => v + ' kg',
+              },
+            },
+          },
+        },
+      });
+
+      // 更新统计
+      updateWeightStats(data);
+    }
+
+    function updateWeightStats(data) {
+      const now = new Date();
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - trendDays);
+      const cutoffStr = cutoff.toISOString().slice(0, 10);
+      const filtered = data.filter((d) => d.recorded_at >= cutoffStr);
+
+      if (filtered.length > 0) {
+        const latest = filtered[filtered.length - 1];
+        const vals = filtered.map((d) => parseFloat(d.weight));
+        const maxW = Math.max(...vals);
+        const minW = Math.min(...vals);
+        document.getElementById('weight-latest').innerHTML =
+          `最近记录：<strong>${latest.weight} kg</strong>（${latest.recorded_at}）`;
+        document.getElementById('weight-stats').innerHTML =
+          `<div>最高：${maxW} kg &nbsp;|&nbsp; 最低：${minW} kg &nbsp;|&nbsp; 波动：${(maxW - minW).toFixed(1)} kg</div>`;
+      } else {
+        document.getElementById('weight-latest').textContent = '暂无体重记录';
+        document.getElementById('weight-stats').textContent = '';
+      }
+    }
+
+    function switchTrendDays(days, btn) {
+      trendDays = days;
+      document.querySelectorAll('.chart-tabs .tab').forEach((t) => t.classList.remove('active'));
+      btn.classList.add('active');
+      loadWeightTrend();
+    }
+
+    async function changePassword() {
+      const oldPw = document.getElementById('pw-old').value;
+      const newPw = document.getElementById('pw-new').value;
+      const confirmPw = document.getElementById('pw-confirm').value;
+      const btn = document.getElementById('btn-save-password');
+
+      if (!oldPw || !newPw || !confirmPw) {
+        APP.toast('请填写所有密码字段', 'warning');
+        return;
+      }
+      if (newPw.length < 6) {
+        APP.toast('新密码至少 6 位字符', 'warning');
+        return;
+      }
+      if (newPw !== confirmPw) {
+        APP.toast('两次输入的新密码不一致', 'warning');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = '⏳ 修改中...';
+
+      try {
+        const res = await APP.api.put('/user/password', {
+          old_password: oldPw,
+          new_password: newPw,
+        });
+        if (res && res.code === 200) {
+          APP.toast('密码修改成功', 'success');
+          document.getElementById('password-form').reset();
+        } else {
+          APP.toast(res.message || '修改失败', 'warning');
+        }
+      } catch (err) {
+        APP.toast(err.message || '修改失败', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🔑 修改密码';
+      }
+    }
+  </script>
+</body>
+
+</html>

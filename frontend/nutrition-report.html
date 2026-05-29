@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>营养报告 - 饮食计划助手</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/diet.css">
+</head>
+<body>
+  <header id="app-header" class="app-header"></header>
+  <nav id="app-sidebar" class="sidebar"></nav>
+
+  <main class="main-content">
+    <div class="page-header">
+      <div class="flex-between">
+        <h1>📈 营养分析报告</h1>
+        <div class="date-picker">
+          <button class="date-nav" id="btn-prev-nutrition">◀</button>
+          <span class="current-date" id="nutrition-date-display">加载中...</span>
+          <button class="date-nav" id="btn-next-nutrition">▶</button>
+        </div>
+      </div>
+      <p>追踪营养摄入趋势，获取个性化饮食建议</p>
+    </div>
+
+    <div class="chart-tabs">
+      <button class="tab active" data-view="daily">📅 日视图</button>
+      <button class="tab" data-view="weekly">📊 周视图</button>
+      <button class="tab" data-view="monthly">📈 月视图</button>
+    </div>
+
+    <div id="chart-area"></div>
+
+    <div id="suggestions-area" class="mt-24"></div>
+  </main>
+
+  <script src="js/main.js"></script>
+  <script src="js/nutrition.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!APP.auth.isLoggedIn()) {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      APP.initPage('nutrition-report');
+      Nutrition.init();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>首页仪表盘 - 饮食计划助手</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/diet.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+  <header id="app-header" class="app-header"></header>
+
+  <nav id="app-sidebar" class="sidebar"></nav>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1>📊 今日概览</h1>
+      <p id="today-date">加载中...</p>
+    </div>
+
+    <div class="announcement-banner" id="announcement-banner" style="display:none">
+      <div class="announcement-banner-inner">
+        <span class="announcement-icon">📢</span>
+        <div class="announcement-body">
+          <div class="announcement-title" id="announcement-title"></div>
+          <div class="announcement-content" id="announcement-content"></div>
+        </div>
+        <a class="announcement-history-link" id="announcement-history-link" href="javascript:void(0)" onclick="showHistoryAnnouncements()">查看历史公告</a>
+      </div>
+    </div>
+
+    <div class="onboarding-banner" id="onboarding-banner" style="display:none">
+      <div class="onboarding-banner-inner">
+        <span class="onboarding-icon">💡</span>
+        <div class="onboarding-body">
+          <div class="onboarding-title">您还未完善身体数据，目前正使用默认的 2000 kcal 营养目标</div>
+          <div class="onboarding-desc">完善身高、体重、年龄等信息后，系统将为您计算更精准的营养目标</div>
+        </div>
+        <a class="onboarding-link" href="profile.html">点击前往完善 →</a>
+      </div>
+    </div>
+
+    <div class="stats-grid" id="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon calorie">🔥</div>
+        <div class="stat-info">
+          <div class="stat-value" id="stat-calories">--</div>
+          <div class="stat-label">今日热量摄入</div>
+          <div class="stat-target" id="stat-calories-target">目标: -- kcal</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon protein">🥩</div>
+        <div class="stat-info">
+          <div class="stat-value" id="stat-protein">--</div>
+          <div class="stat-label">蛋白质</div>
+          <div class="stat-target" id="stat-protein-target">目标: -- g</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon fat">🧈</div>
+        <div class="stat-info">
+          <div class="stat-value" id="stat-fat">--</div>
+          <div class="stat-label">脂肪</div>
+          <div class="stat-target" id="stat-fat-target">目标: -- g</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon carbs">🍚</div>
+        <div class="stat-info">
+          <div class="stat-value" id="stat-carbs">--</div>
+          <div class="stat-label">碳水</div>
+          <div class="stat-target" id="stat-carbs-target">目标: -- g</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card water-card" id="water-card">
+      <div class="card-header">
+        <h3>💧 今日饮水目标</h3>
+        <span class="water-progress-text" id="water-progress-text">-- / 2000 ml</span>
+      </div>
+      <div class="card-body">
+        <div class="water-glasses" id="water-glasses">
+          <div class="loading">加载中</div>
+        </div>
+        <div class="water-actions">
+          <button class="btn btn-info water-add-btn" id="btn-add-water" onclick="addWater()">
+            💧 +250ml
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="calorie-ring-section" id="calorie-ring-section">
+      <h3>📈 今日热量预算</h3>
+      <div class="ring-chart-container">
+        <canvas id="calorie-ring-chart"></canvas>
+        <div class="ring-center-text" id="ring-center-text">
+          <div class="ring-remaining-value" id="ring-remaining-value">--</div>
+          <div class="ring-remaining-label" id="ring-remaining-label">剩余可摄入</div>
+        </div>
+      </div>
+      <div class="nutrient-mini-bars" id="nutrient-mini-bars">
+        <div class="loading">加载中</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header">
+          <h3>⚡ 快捷操作</h3>
+        </div>
+        <div class="card-body">
+          <div class="flex-wrap gap-12">
+            <a href="meal-record.html" class="btn btn-primary">
+              📝 快速记录饮食
+            </a>
+            <button class="btn btn-info" onclick="showAIModal()">
+              🤖 AI 智能录入
+            </button>
+            <a href="diet-plan.html" class="btn btn-secondary">
+              📋 查看饮食计划
+            </a>
+            <a href="nutrition-report.html" class="btn btn-info">
+              📈 营养分析报告
+            </a>
+            <a href="food-library.html" class="btn btn-secondary">
+              📦 浏览食材库
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="current-plan-card">
+        <div class="card-header">
+          <h3>📋 当前计划</h3>
+        </div>
+        <div class="card-body" id="current-plan-content">
+          <div class="loading">加载中</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="today-records-card">
+      <div class="card-header">
+        <h3>🍽️ 今日饮食记录</h3>
+        <a href="meal-record.html" class="btn btn-sm btn-primary">+ 添加记录</a>
+      </div>
+      <div class="card-body" id="today-records-content">
+        <div class="loading">加载中</div>
+      </div>
+    </div>
+  </main>
+
+  <script src="js/main.js"></script>
+  <script>
+    let calorieRingChart = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!APP.auth.isLoggedIn()) {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      APP.initPage('index');
+
+      document.getElementById('today-date').textContent = APP.formatDateCN(new Date());
+
+      checkProfileComplete();
+      loadDashboard();
+      loadAnnouncement();
+      loadWater();
+    });
+
+    const WATER_GOAL = 2000;
+    const WATER_PER_GLASS = 250;
+    const WATER_GLASS_COUNT = WATER_GOAL / WATER_PER_GLASS;
+
+    async function loadWater() {
+      try {
+        const res = await APP.api.get('/water/today');
+        if (res && res.code === 200) {
+          renderWaterGlasses(res.data.total);
+        }
+      } catch (err) {
+        console.error('加载饮水数据失败:', err);
+        renderWaterGlasses(0);
+      }
+    }
+
+    function renderWaterGlasses(total) {
+      const filledCount = Math.min(Math.floor(total / WATER_PER_GLASS), WATER_GLASS_COUNT);
+      const container = document.getElementById('water-glasses');
+      const progressText = document.getElementById('water-progress-text');
+
+      progressText.textContent = `${total} / ${WATER_GOAL} ml`;
+
+      let html = '';
+      for (let i = 0; i < WATER_GLASS_COUNT; i++) {
+        const filled = i < filledCount ? ' filled' : '';
+        html += `<div class="water-glass${filled}" title="${(i + 1) * WATER_PER_GLASS}ml"></div>`;
+      }
+      container.innerHTML = html;
+    }
+
+    async function addWater() {
+      const btn = document.getElementById('btn-add-water');
+      btn.disabled = true;
+      btn.textContent = '⏳ 记录中...';
+
+      try {
+        const res = await APP.api.post('/water/add', { amount: WATER_PER_GLASS });
+        if (res && res.code === 200) {
+          renderWaterGlasses(res.data.total);
+          APP.toast(`+${WATER_PER_GLASS}ml 已记录`);
+        }
+      } catch (err) {
+        APP.toast(err.message || '记录失败，请稍后重试', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '💧 +250ml';
+      }
+    }
+
+    function checkProfileComplete() {
+      const user = APP.auth.getUser();
+      if (!user) return;
+
+      const missing = [];
+      if (!user.gender) missing.push('性别');
+      if (!user.age) missing.push('年龄');
+      if (!user.height) missing.push('身高');
+      if (!user.weight) missing.push('体重');
+
+      if (missing.length > 0) {
+        document.getElementById('onboarding-banner').style.display = '';
+      }
+    }
+
+    async function loadAnnouncement() {
+      try {
+        const res = await APP.api.get('/announcements/latest');
+        if (res && res.code === 200 && res.data) {
+          const banner = document.getElementById('announcement-banner');
+          document.getElementById('announcement-title').textContent = res.data.title;
+          document.getElementById('announcement-content').textContent = res.data.content;
+          banner.style.display = '';
+
+          // 检查是否有多条公告来决定是否显示"查看历史公告"链接
+          const listRes = await APP.api.get('/announcements/list');
+          if (listRes && listRes.code === 200 && listRes.data && listRes.data.length > 1) {
+            document.getElementById('announcement-history-link').style.display = '';
+          } else {
+            document.getElementById('announcement-history-link').style.display = 'none';
+          }
+        }
+      } catch (err) {
+        // 公告加载失败静默处理，不影响首页功能
+      }
+    }
+
+    async function showHistoryAnnouncements() {
+      try {
+        const res = await APP.api.get('/announcements/list');
+        if (!res || res.code !== 200 || !res.data || res.data.length === 0) {
+          APP.toast('暂无历史公告', 'info');
+          return;
+        }
+
+        let listHtml = '';
+        res.data.forEach((item, index) => {
+          const isLatest = index === 0;
+          const dateStr = new Date(item.created_at).toLocaleString('zh-CN', {
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit'
+          });
+          listHtml += `
+            <div class="history-announcement-item${isLatest ? ' is-latest' : ''}">
+              <div class="history-timeline-dot"></div>
+              <div class="history-announcement-card">
+                <div class="history-announcement-header">
+                  <span class="history-announcement-title">${APP.escapeHtml(item.title)}</span>
+                  ${isLatest ? '<span class="tag tag-warning" style="font-size:11px">最新</span>' : ''}
+                </div>
+                <div class="history-announcement-content">${APP.escapeHtml(item.content)}</div>
+                <div class="history-announcement-time">${dateStr}</div>
+              </div>
+            </div>
+          `;
+        });
+
+        const content = document.createElement('div');
+        content.className = 'history-announcement-list';
+        content.innerHTML = listHtml;
+
+        APP.modal.show(content, { title: '📢 历史公告' });
+      } catch (err) {
+        APP.toast('加载历史公告失败', 'error');
+      }
+    }
+
+    async function loadDashboard() {
+      const today = APP.getToday();
+
+      try {
+        const nutritionRes = await APP.api.get(`/nutrition/daily?date=${today}`);
+        if (nutritionRes && nutritionRes.code === 200) {
+          renderNutrition(nutritionRes.data);
+        }
+      } catch (err) {
+        console.error('加载营养数据失败:', err);
+        renderEmptyNutrition();
+      }
+
+      try {
+        const plansRes = await APP.api.get('/plan');
+        if (plansRes && plansRes.code === 200 && plansRes.data && plansRes.data.length > 0) {
+          const activePlan = plansRes.data.find((p) => p.status === '进行中');
+          if (activePlan) {
+            renderCurrentPlan(activePlan);
+          } else {
+            renderNoPlan();
+          }
+        } else {
+          renderNoPlan();
+        }
+      } catch (err) {
+        console.error('加载计划数据失败:', err);
+        renderNoPlan();
+      }
+
+      try {
+        const recordsRes = await APP.api.get(`/record?date=${today}`);
+        if (recordsRes && recordsRes.code === 200) {
+          renderTodayRecords(recordsRes.data);
+        }
+      } catch (err) {
+        console.error('加载饮食记录失败:', err);
+        renderEmptyRecords();
+      }
+    }
+
+    function renderCalorieRing(actualCalories, targetCalories) {
+      const remaining = targetCalories - actualCalories;
+      const exceeded = actualCalories > targetCalories;
+      const consumed = Math.min(actualCalories, targetCalories);
+
+      const centerText = document.getElementById('ring-center-text');
+      const valueEl = document.getElementById('ring-remaining-value');
+      const labelEl = document.getElementById('ring-remaining-label');
+
+      if (exceeded) {
+        centerText.classList.add('exceeded');
+        valueEl.textContent = '热量已超标';
+        labelEl.textContent = `${Math.round(actualCalories - targetCalories)} kcal！`;
+      } else {
+        centerText.classList.remove('exceeded');
+        valueEl.textContent = `${Math.round(remaining)}`;
+        labelEl.textContent = '剩余可摄入 (kcal)';
+      }
+
+      if (calorieRingChart) {
+        calorieRingChart.destroy();
+        calorieRingChart = null;
+      }
+
+      const ctx = document.getElementById('calorie-ring-chart').getContext('2d');
+      const remainingForRing = exceeded ? 0 : Math.max(targetCalories - consumed, 0);
+      const color = exceeded ? '#F44336' : '#4CAF50';
+
+      calorieRingChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          datasets: [{
+            data: [consumed, remainingForRing],
+            backgroundColor: [color, '#EEEEEE'],
+            borderWidth: 0,
+            borderRadius: exceeded ? 0 : 6,
+          }],
+        },
+        options: {
+          cutout: '78%',
+          responsive: true,
+          maintainAspectRatio: true,
+          animation: { duration: 400 },
+          plugins: {
+            tooltip: { enabled: false },
+            legend: { display: false },
+          },
+        },
+      });
+    }
+
+    function renderNutrition(data) {
+      const total = data.totalNutrition || {};
+      const target = data.targetNutrition || {};
+      const actualCalories = parseFloat(total.calories) || 0;
+      const actualProtein = parseFloat(total.protein) || 0;
+      const actualFat = parseFloat(total.fat) || 0;
+      const actualCarbs = parseFloat(total.carbs) || 0;
+      const targetCalories = parseFloat(target.calories) || 2000;
+      const targetProtein = parseFloat(target.protein) || 60;
+      const targetFat = parseFloat(target.fat) || 50;
+      const targetCarbs = parseFloat(target.carbs) || 250;
+
+      document.getElementById('stat-calories').textContent = Math.round(actualCalories);
+      document.getElementById('stat-protein').textContent = Math.round(actualProtein) + 'g';
+      document.getElementById('stat-fat').textContent = Math.round(actualFat) + 'g';
+      document.getElementById('stat-carbs').textContent = Math.round(actualCarbs) + 'g';
+      document.getElementById('stat-calories-target').textContent = `目标: ${Math.round(targetCalories)} kcal`;
+      document.getElementById('stat-protein-target').textContent = `目标: ${Math.round(targetProtein)} g`;
+      document.getElementById('stat-fat-target').textContent = `目标: ${Math.round(targetFat)} g`;
+      document.getElementById('stat-carbs-target').textContent = `目标: ${Math.round(targetCarbs)} g`;
+
+      renderCalorieRing(actualCalories, targetCalories);
+
+      const nutrients = [
+        { label: '蛋白质', current: actualProtein, target: targetProtein, unit: 'g', color: 'danger' },
+        { label: '脂肪', current: actualFat, target: targetFat, unit: 'g', color: 'warning' },
+        { label: '碳水', current: actualCarbs, target: targetCarbs, unit: 'g', color: 'primary' },
+      ];
+
+      let barsHtml = '';
+      nutrients.forEach((n) => {
+        const pct = Math.min((n.current / n.target) * 100, 100);
+        barsHtml += `
+          <div class="nutrient-row">
+            <span class="nutrient-label">${n.label}</span>
+            <div class="nutrient-bar">
+              <div class="progress-bar">
+                <div class="progress-fill ${n.color}" style="width: ${pct}%"></div>
+              </div>
+            </div>
+            <span class="nutrient-value">
+              <span class="current">${Math.round(n.current)}</span>
+              <span class="target"> / ${Math.round(n.target)} ${n.unit}</span>
+            </span>
+          </div>
+        `;
+      });
+
+      document.getElementById('nutrient-mini-bars').innerHTML = barsHtml;
+    }
+
+    function renderEmptyNutrition() {
+      document.getElementById('stat-calories').textContent = '0';
+      document.getElementById('stat-protein').textContent = '0g';
+      document.getElementById('stat-fat').textContent = '0g';
+      document.getElementById('stat-carbs').textContent = '0g';
+
+      if (calorieRingChart) {
+        calorieRingChart.destroy();
+        calorieRingChart = null;
+      }
+
+      const centerText = document.getElementById('ring-center-text');
+      centerText.classList.remove('exceeded');
+      document.getElementById('ring-remaining-value').textContent = '--';
+      document.getElementById('ring-remaining-label').textContent = '剩余可摄入 (kcal)';
+
+      document.getElementById('nutrient-mini-bars').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">📊</div>
+          <p>暂无今日营养数据</p>
+          <p class="text-sm">记录饮食后将自动汇总统计</p>
+        </div>
+      `;
+    }
+
+    function renderCurrentPlan(plan) {
+      const startDate = APP.formatDate(plan.start_date);
+      const endDate = APP.formatDate(plan.end_date);
+      const goalTag = APP.goalColors[plan.goal] || 'primary';
+
+      document.getElementById('current-plan-content').innerHTML = `
+        <div class="plan-card ${APP.goalClasses[plan.goal] || ''}">
+          <div class="plan-header">
+            <div>
+              <div class="plan-name">📋 ${APP.escapeHtml(plan.name)}</div>
+              <div class="plan-meta">${startDate} ~ ${endDate}</div>
+            </div>
+            <span class="tag tag-${goalTag}">${plan.goal}</span>
+          </div>
+          <div class="plan-nutrients">
+            <div class="plan-nutrient">
+              <div class="value">${plan.daily_calories || '--'}</div>
+              <div class="label">每日热量(kcal)</div>
+            </div>
+            <div class="plan-nutrient">
+              <div class="value">${plan.daily_protein || '--'}g</div>
+              <div class="label">蛋白质</div>
+            </div>
+            <div class="plan-nutrient">
+              <div class="value">${plan.daily_fat || '--'}g</div>
+              <div class="label">脂肪</div>
+            </div>
+            <div class="plan-nutrient">
+              <div class="value">${plan.daily_carbs || '--'}g</div>
+              <div class="label">碳水</div>
+            </div>
+          </div>
+          <div class="plan-actions">
+            <a href="diet-plan.html" class="btn btn-sm btn-primary">查看详情</a>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderNoPlan() {
+      document.getElementById('current-plan-content').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">📋</div>
+          <p>暂无进行中的饮食计划</p>
+          <a href="diet-plan.html" class="btn btn-primary btn-sm">创建计划</a>
+        </div>
+      `;
+    }
+
+    function renderTodayRecords(records) {
+      if (!records || records.length === 0) {
+        renderEmptyRecords();
+        return;
+      }
+
+      const grouped = {};
+      records.forEach((r) => {
+        const meal = r.meal_type || '其他';
+        if (!grouped[meal]) grouped[meal] = [];
+        grouped[meal].push(r);
+      });
+
+      let html = '';
+      const mealOrder = ['早餐', '午餐', '晚餐', '加餐'];
+      let totalCalories = 0;
+
+      mealOrder.forEach((mealType) => {
+        const items = grouped[mealType];
+        if (!items || items.length === 0) return;
+
+        const mealIcon = APP.mealTypes.find((m) => m.value === mealType);
+        const icon = mealIcon ? mealIcon.icon : '🍽️';
+        let mealCalories = 0;
+
+        html += `<div style="margin-bottom: 12px;">`;
+        html += `<div class="font-medium mb-8">${icon} ${mealType}</div>`;
+
+        items.forEach((item) => {
+          const foodName = item.food_name || item.FoodItem?.name || '未知食材';
+          const quantity = parseFloat(item.quantity) || 0;
+          const calPer100g = parseFloat(item.calories_per_100g) || 0;
+          const cal = (calPer100g * quantity) / 100;
+          mealCalories += cal;
+          totalCalories += cal;
+
+          html += `
+            <div class="meal-record-item">
+              <div class="item-info">
+                <div class="item-name">${APP.escapeHtml(foodName)}</div>
+                <div class="item-detail">${quantity}g</div>
+              </div>
+              <div class="item-calories">${Math.round(cal)} kcal</div>
+            </div>
+          `;
+        });
+
+        html += `<div class="text-sm text-muted" style="text-align:right; padding: 4px 0;">小计: ${Math.round(mealCalories)} kcal</div>`;
+        html += `</div>`;
+      });
+
+      html += `
+        <div style="border-top: 2px solid var(--border); padding-top: 12px; margin-top: 8px; text-align: right; font-size: 16px; font-weight: 700;">
+          今日总计: ${Math.round(totalCalories)} kcal
+        </div>
+      `;
+
+      document.getElementById('today-records-content').innerHTML = html;
+    }
+
+    function renderEmptyRecords() {
+      document.getElementById('today-records-content').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">🍽️</div>
+          <p>今日还没有饮食记录</p>
+          <a href="meal-record.html" class="btn btn-primary btn-sm">立即记录</a>
+        </div>
+      `;
+    }
+
+    function showAIModal() {
+      const content = document.createElement('div');
+      content.innerHTML = `
+        <div class="form-group">
+          <label>用餐时段</label>
+          <select id="ai-meal-type" class="form-control">
+            <option value="早餐">🌅 早餐</option>
+            <option value="午餐">☀️ 午餐</option>
+            <option value="晚餐">🌙 晚餐</option>
+            <option value="加餐">🍎 加餐</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>饮食描述（大白话输入）</label>
+          <textarea id="ai-text" class="form-control" placeholder="例如：我今天中午吃了2个肉包、一碗米饭和一份番茄炒蛋" rows="3"></textarea>
+        </div>
+        <div class="form-group">
+          <label>食物图片（选填）</label>
+          <div class="image-upload-zone" id="ai-image-zone">
+            <div class="image-upload-placeholder" id="ai-image-placeholder">
+              <div class="image-upload-icon">🖼️</div>
+              <div class="image-upload-text">点击上传或拖拽图片到此处</div>
+              <div class="image-upload-hint">支持 JPG、PNG、WebP，大小不超过 10MB</div>
+            </div>
+            <input type="file" id="ai-image-file" accept="image/jpeg,image/png,image/webp" style="display:none">
+          </div>
+          <div class="form-hint">上传食物照片，AI 将结合图片进行精准识别</div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="APP.modal.close()">取消</button>
+          <button class="btn btn-info" id="btn-ai-analyze" onclick="runAIAnalyze()">
+            🤖 AI 智能分析
+          </button>
+        </div>
+      `;
+
+      const { modal } = APP.modal.show(content, { title: '🤖 AI 智能饮食录入' });
+      modal.style.minWidth = '480px';
+
+      // 初始化图片上传区域
+      initImageUpload();
+    }
+
+    let aiImageBase64 = null;
+
+    function initImageUpload() {
+      const zone = document.getElementById('ai-image-zone');
+      const fileInput = document.getElementById('ai-image-file');
+      const placeholder = document.getElementById('ai-image-placeholder');
+
+      if (!zone || !fileInput) return;
+
+      // 点击上传区域触发文件选择
+      zone.addEventListener('click', (e) => {
+        if (e.target.closest('.image-upload-remove')) return;
+        fileInput.click();
+      });
+
+      // 文件选择
+      fileInput.addEventListener('change', () => {
+        if (fileInput.files && fileInput.files[0]) {
+          handleImageFile(fileInput.files[0]);
+        }
+      });
+
+      // 拖拽事件
+      zone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        zone.classList.add('dragover');
+      });
+
+      zone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        zone.classList.remove('dragover');
+      });
+
+      zone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        zone.classList.remove('dragover');
+        const files = e.dataTransfer.files;
+        if (files && files[0]) {
+          handleImageFile(files[0]);
+        }
+      });
+    }
+
+    function handleImageFile(file) {
+      if (!file.type.startsWith('image/')) {
+        APP.toast('请上传图片文件', 'warning');
+        return;
+      }
+
+      if (file.size > 10 * 1024 * 1024) {
+        APP.toast('图片大小不能超过 10MB', 'warning');
+        return;
+      }
+
+      const zone = document.getElementById('ai-image-zone');
+      const placeholder = document.getElementById('ai-image-placeholder');
+
+      // 显示加载状态
+      placeholder.innerHTML = `
+        <div class="image-upload-loading">
+          <div class="image-upload-spinner"></div>
+          <div class="upload-progress-text">正在读取图片...</div>
+        </div>
+      `;
+
+      const reader = new FileReader();
+
+      reader.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const pct = Math.round((e.loaded / e.total) * 100);
+          placeholder.innerHTML = `
+            <div class="image-upload-loading">
+              <div class="image-upload-spinner"></div>
+              <div class="upload-progress">
+                <div class="progress-bar">
+                  <div class="progress-fill" style="width:${pct}%"></div>
+                </div>
+              </div>
+              <div class="upload-progress-text">读取中 ${pct}%</div>
+            </div>
+          `;
+        }
+      };
+
+      reader.onload = () => {
+        aiImageBase64 = reader.result;
+        placeholder.innerHTML = `
+          <div class="image-upload-preview">
+            <img src="${aiImageBase64}" alt="食物图片预览">
+            <div class="image-upload-remove" onclick="removeImage(event)">✕</div>
+          </div>
+        `;
+        zone.classList.add('has-image');
+      };
+
+      reader.onerror = () => {
+        APP.toast('图片读取失败，请重试', 'error');
+        resetImageUpload();
+      };
+
+      reader.readAsDataURL(file);
+    }
+
+    function removeImage(e) {
+      e.stopPropagation();
+      aiImageBase64 = null;
+      resetImageUpload();
+    }
+
+    function resetImageUpload() {
+      const zone = document.getElementById('ai-image-zone');
+      const placeholder = document.getElementById('ai-image-placeholder');
+      const fileInput = document.getElementById('ai-image-file');
+
+      if (zone) zone.classList.remove('has-image');
+      if (fileInput) fileInput.value = '';
+      if (placeholder) {
+        placeholder.innerHTML = `
+          <div class="image-upload-icon">🖼️</div>
+          <div class="image-upload-text">点击上传或拖拽图片到此处</div>
+          <div class="image-upload-hint">支持 JPG、PNG、WebP，大小不超过 10MB</div>
+        `;
+      }
+    }
+
+    async function runAIAnalyze() {
+      const mealType = document.getElementById('ai-meal-type').value;
+      const text = document.getElementById('ai-text').value.trim();
+      const btn = document.getElementById('btn-ai-analyze');
+      const today = APP.getToday();
+
+      if (!text && !aiImageBase64) {
+        APP.toast('请输入饮食描述或上传食物图片', 'warning');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = '⏳ AI 分析中...';
+
+      try {
+        const res = await APP.api.post('/ai/analyze', {
+          text: text || undefined,
+          imageBase64: aiImageBase64 || undefined,
+          mealType,
+          recordDate: today,
+        });
+
+        if (res && (res.code === 200 || res.code === 201)) {
+          APP.cache.markReportStale();
+          APP.toast(res.message || 'AI 录入完成');
+          APP.modal.close();
+          loadDashboard();
+        } else {
+          APP.toast(res.message || 'AI 分析失败', 'warning');
+        }
+      } catch (err) {
+        APP.toast(err.message || 'AI 服务异常，请稍后重试', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🤖 AI 智能分析';
+      }
+    }
+  </script>
+</body>
+
+</html>

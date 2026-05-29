@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>饮食计划 - 饮食计划助手</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/diet.css">
+</head>
+<body>
+  <header id="app-header" class="app-header"></header>
+  <nav id="app-sidebar" class="sidebar"></nav>
+
+  <main class="main-content">
+    <div class="page-header flex-between">
+      <div>
+        <h1>📋 饮食计划管理</h1>
+        <p>创建和管理你的饮食计划</p>
+      </div>
+      <div class="flex-row gap-8">
+        <button class="btn btn-secondary" id="btn-templates">📦 查看模板</button>
+        <button class="btn btn-primary" id="btn-create-plan">+ 创建新计划</button>
+      </div>
+    </div>
+
+    <div id="plan-list"></div>
+
+    <div id="week-view-container"></div>
+  </main>
+
+  <script src="js/main.js"></script>
+  <script src="js/dietPlan.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!APP.auth.isLoggedIn()) {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      APP.initPage('diet-plan');
+      DietPlan.init();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>数据周报 - 饮食计划助手</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/diet.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+  <header id="app-header" class="app-header"></header>
+  <nav id="app-sidebar" class="sidebar"></nav>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1>📋 饮食周报总结</h1>
+      <p id="date-range-text">加载中...</p>
+    </div>
+
+    <div id="report-content"></div>
+  </main>
+
+  <script src="js/main.js"></script>
+  <script>
+    let calorieChart = null;
+    let proteinChart = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!APP.auth.isLoggedIn()) {
+        window.location.href = 'login.html';
+        return;
+      }
+      APP.initPage('weekly-report');
+      loadWeeklyReport();
+    });
+
+    async function loadWeeklyReport() {
+      const stale = APP.cache.isReportStale();
+      const cached = APP.cache.get(APP.cache.REPORT_KEY);
+
+      if (cached && !stale) {
+        renderReport(cached, true);
+        return;
+      }
+
+      document.getElementById('report-content').innerHTML = '<div class="loading">正在生成周报</div>';
+
+      try {
+        const res = await APP.api.get('/reports');
+        if (res && res.code === 200) {
+          APP.cache.set(APP.cache.REPORT_KEY, res.data);
+          APP.cache.clearReportStale();
+          renderReport(res.data, false);
+        } else {
+          if (cached) {
+            renderReport(cached, true);
+          } else {
+            renderError(res?.message || '加载失败');
+          }
+        }
+      } catch (err) {
+        console.error('加载周报失败:', err);
+        if (cached) {
+          renderReport(cached, true);
+        } else {
+          renderError(err.message || '网络异常，请稍后重试');
+        }
+      }
+    }
+
+    function renderReport(data, fromCache) {
+      const d = data.dailyData || [];
+      const s = data.summary || {};
+      const w = data.weight || {};
+
+      const dateLabel = `${data.dateRange.start} ~ ${data.dateRange.end}`;
+      document.getElementById('date-range-text').innerHTML = fromCache
+        ? `${dateLabel} <span style="font-size:12px;color:var(--text-light);background:var(--bg);padding:2px 8px;border-radius:10px;margin-left:8px;">缓存数据</span>`
+        : dateLabel;
+
+      const labels = d.map((r) => {
+        const dt = new Date(r.date);
+        return (dt.getMonth() + 1) + '/' + dt.getDate();
+      });
+
+      let html = '';
+
+      // 图表区域
+      html += '<div class="grid-2">';
+      html += '<div class="chart-container"><h3>🔥 热量摄入趋势 (kcal)</h3><canvas id="chart-calories"></canvas></div>';
+      html += '<div class="chart-container"><h3>🥩 蛋白质摄入趋势 (g)</h3><canvas id="chart-protein"></canvas></div>';
+      html += '</div>';
+
+      // 摘要统计卡片
+      html += '<div class="stats-grid">';
+      html += buildStatCard('🔥', '平均热量', s.avgCalories + ' kcal', '目标 ' + (s.targetCalories || 2000) + ' kcal');
+      html += buildStatCard('🥩', '蛋白质', s.avgProtein + ' g', s.proteinPct + '% 供能比');
+      html += buildStatCard('🧈', '脂肪', s.avgFat + ' g', s.fatPct + '% 供能比');
+      html += buildStatCard('🍚', '碳水', s.avgCarbs + ' g', s.carbsPct + '% 供能比');
+      html += '</div>';
+
+      // 体重变化
+      if (w.direction) {
+        const changeIcon = w.direction === '上升' ? '📈' : w.direction === '下降' ? '📉' : '➡️';
+        const changeColor = w.direction === '上升' ? 'text-warning' : w.direction === '下降' ? 'text-success' : '';
+        html += `
+          <div class="card" style="border-left: 4px solid var(--info);">
+            <div class="card-header"><h3>⚖️ 体重变化</h3></div>
+            <div class="card-body">
+              <div style="font-size: 18px; display: flex; align-items: center; gap: 8px;">
+                ${changeIcon}
+                <span>本周体重<strong class="${changeColor}">${w.direction}</strong></span>
+                <span class="${changeColor} text-lg font-bold">${Math.abs(w.change)} kg</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // AI 点评
+      html += `
+        <div class="card" id="ai-suggestion-card" style="border-left: 4px solid var(--primary);">
+          <div class="card-header"><h3>🤖 AI 营养师周报点评</h3></div>
+          <div class="card-body">
+            <p style="font-size: 15px; line-height: 1.8; color: var(--text);">${APP.escapeHtml(data.aiSuggestion || '暂无数据')}</p>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('report-content').innerHTML = html;
+
+      // 渲染折线图（延迟确保 canvas 已渲染到 DOM）
+      requestAnimationFrame(() => {
+        renderCalorieChart(labels, d);
+        renderProteinChart(labels, d);
+      });
+    }
+
+    function buildStatCard(icon, label, value, sub) {
+      return `
+        <div class="stat-card">
+          <div class="stat-icon">${icon}</div>
+          <div class="stat-info">
+            <div class="stat-value">${value}</div>
+            <div class="stat-label">${label}</div>
+            <div class="stat-target">${sub}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderCalorieChart(labels, dailyData) {
+      const ctx = document.getElementById('chart-calories');
+      if (!ctx) return;
+
+      if (calorieChart) calorieChart.destroy();
+
+      calorieChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            data: dailyData.map((d) => d.calories),
+            borderColor: '#4CAF50',
+            backgroundColor: 'rgba(76, 175, 80, 0.1)',
+            borderWidth: 2,
+            pointRadius: 4,
+            pointBackgroundColor: '#4CAF50',
+            fill: true,
+            tension: 0.3,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => ctx.parsed.y + ' kcal',
+              },
+            },
+          },
+          scales: {
+            y: {
+              grace: '5%',
+              ticks: {
+                callback: (v) => v + ' kcal',
+              },
+            },
+          },
+        },
+      });
+    }
+
+    function renderProteinChart(labels, dailyData) {
+      const ctx = document.getElementById('chart-protein');
+      if (!ctx) return;
+
+      if (proteinChart) proteinChart.destroy();
+
+      proteinChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            data: dailyData.map((d) => d.protein),
+            borderColor: '#F44336',
+            backgroundColor: 'rgba(244, 67, 54, 0.1)',
+            borderWidth: 2,
+            pointRadius: 4,
+            pointBackgroundColor: '#F44336',
+            fill: true,
+            tension: 0.3,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => ctx.parsed.y + ' g',
+              },
+            },
+          },
+          scales: {
+            y: {
+              grace: '5%',
+              ticks: {
+                callback: (v) => v + ' g',
+              },
+            },
+          },
+        },
+      });
+    }
+
+    function renderError(msg) {
+      document.getElementById('report-content').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">📋</div>
+          <p>${APP.escapeHtml(msg)}</p>
+          <button class="btn btn-primary btn-sm" onclick="loadWeeklyReport()">重新加载</button>
+        </div>
+      `;
+    }
+  </script>
+</body>
+
+</html>

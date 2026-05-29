@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>食材库 - 饮食计划助手</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/diet.css">
+</head>
+<body>
+  <header id="app-header" class="app-header"></header>
+  <nav id="app-sidebar" class="sidebar"></nav>
+
+  <main class="main-content">
+    <div class="page-header flex-between">
+      <div>
+        <h1>📦 食材库</h1>
+        <p>浏览、搜索和管理食材数据</p>
+      </div>
+      <button class="btn btn-primary" id="btn-add-custom-food">+ 自定义食材</button>
+    </div>
+
+    <div class="food-search-bar">
+      <input type="text" id="food-search" class="form-control" placeholder="🔍 搜索食材名称...">
+    </div>
+
+    <div id="category-tabs" class="category-tabs"></div>
+
+    <div id="food-list" class="food-list"></div>
+  </main>
+
+  <script src="js/main.js"></script>
+  <script src="js/foodLibrary.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!APP.auth.isLoggedIn()) {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      APP.initPage('food-library');
+      FoodLibrary.init();
+    });
+  </script>
+</body>
+</html>
